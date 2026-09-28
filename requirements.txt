@@ -1,0 +1,8 @@
+fastapi==0.141.1
+uvicorn==0.54.0
+python-multipart==0.0.32
+openai==3.19.2
+pinecone==10.0.0
+pinecone-text==0.11.0
+tiktoken==0.14.0
+pythainlp==5.3.8

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# pre-commit — Credential Scanner (CRITICAL gate)
+# สแกนไฟล์ที่ stage ไว้ ก่อน commit ทุกครั้ง หากพบ credential จะ "บล็อก" การ commit ทันที
+# Scans staged content before every commit; BLOCKS the commit if any credential is found.
+#
+# ติดตั้ง / Install:
+#   git config core.hooksPath hooks
+#
+# ข้ามชั่วคราว (ใช้เมื่อจำเป็นจริง ๆ เท่านั้น) / Bypass (use only when truly necessary):
+#   git commit --no-verify
+
+set -u
+
+RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; BOLD='\033[1m'; NC='\033[0m'
+
+# ── รูปแบบ credential ที่ตรวจจับ (pattern : คำอธิบาย) ────────────────────────
+PATTERNS=(
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----:::Private key block'
+  'AKIA[0-9A-Z]{16}:::AWS Access Key ID'
+  'ASIA[0-9A-Z]{16}:::AWS temporary Access Key'
+  'AIza[0-9A-Za-z_\-]{35}:::Google API key'
+  'xox[baprs]-[0-9A-Za-z-]{10,}:::Slack token'
+  'gh[pousr]_[0-9A-Za-z]{36,}:::GitHub token'
+  'sk-[A-Za-z0-9]{20,}:::Generic secret/OpenAI-style key'
+  'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}:::JWT token'
+  '(password|passwd|pwd)["'"'"' ]*[:=]["'"'"' ]*[^"'"'"' ${}<>]{4,}:::Hardcoded password'
+  '(secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)["'"'"' ]*[:=]["'"'"' ]*[^"'"'"' ${}<>]{6,}:::Hardcoded secret/API key'
+  'Authorization:[ ]*Bearer[ ]+[A-Za-z0-9._-]{10,}:::Bearer token in header'
+)
+
+# ไฟล์ที่ stage และยังมีอยู่ (เพิ่ม/แก้) / staged files that still exist
+FILES=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$FILES" ] && exit 0
+
+FOUND=0
+
+print_hit() {
+  if [ "$FOUND" -eq 0 ]; then
+    printf "\n${RED}${BOLD}🚨 CRITICAL: พบ credential ที่อาจหลุดเข้า commit / potential credential detected${NC}\n"
+    printf "${RED}${BOLD}   การ commit ถูกบล็อกไว้ / commit BLOCKED${NC}\n\n"
+  fi
+  FOUND=1
+}
+
+for file in $FILES; do
+  # ข้ามไฟล์ binary / skip binary files
+  if git diff --cached "$file" | grep -qI . ; then : ; else continue; fi
+
+  for entry in "${PATTERNS[@]}"; do
+    regex="${entry%%:::*}"
+    label="${entry##*:::}"
+    # ตรวจเฉพาะบรรทัดที่ "เพิ่ม" ใหม่ (ขึ้นต้นด้วย +) / only newly added lines
+    matches=$(git diff --cached -U0 "$file" | grep -nE "^\+" | grep -inE -e "$regex")
+    if [ -n "$matches" ]; then
+      print_hit
+      printf "  ${YELLOW}● %s${NC}  →  ${BOLD}%s${NC}\n" "$file" "$label"
+      echo "$matches" | sed 's/^/      /'
+      echo ""
+    fi
+  done
+done
+
+if [ "$FOUND" -eq 1 ]; then
+  printf "${BOLD}สิ่งที่ต้องทำ / What to do:${NC}\n"
+  printf "  1. ลบ credential ออกจากโค้ด แล้วย้ายไปไว้ใน .env / environment variable\n"
+  printf "  2. ตรวจให้แน่ใจว่า .env อยู่ใน .gitignore แล้ว\n"
+  printf "  3. หาก key หลุดไปแล้วจริง ${RED}ให้ revoke/หมุน key ทันที${NC}\n\n"
+  printf "  ยืนยันว่าปลอดภัยจริงและต้องการข้ามการตรวจ: ${YELLOW}git commit --no-verify${NC}\n\n"
+  exit 1
+fi
+
+printf "${GREEN}✓ credential scan ผ่าน / no credentials detected${NC}\n"
+exit 0

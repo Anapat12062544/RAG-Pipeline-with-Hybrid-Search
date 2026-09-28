@@ -1,0 +1,22 @@
+# Normalize line endings — กัน CRLF/LF เพี้ยนข้าม OS
+* text=auto eol=lf
+
+# Windows scripts ใช้ CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Shell scripts ใช้ LF เสมอ
+*.sh text eol=lf
+
+# Binary files — อย่าแตะ
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary

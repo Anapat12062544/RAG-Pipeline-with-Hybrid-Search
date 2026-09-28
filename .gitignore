@@ -1,0 +1,36 @@
+# ===== Secrets / สิ่งที่ห้ามขึ้น repo เด็ดขาด =====
+.env
+.env.*
+*.pem
+*.key
+secrets.*
+credentials.*
+
+# ===== Dependencies =====
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ===== Build output =====
+dist/
+build/
+out/
+*.log
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+
+# ===== Temp =====
+*.tmp
+*.bak
+tmp/
+!.env.example
